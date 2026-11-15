@@ -16,7 +16,7 @@ from fastapi import FastAPI, Header, HTTPException
 SECRET_KEY = os.environ.get("SECRET_KEY", "")
 HOSTNAME_RE = re.compile(r"^[A-Za-z0-9.-]{1,253}$")
 
-DB_PATH = "app.db"
+DB_PATH = os.environ.get("DB_PATH", "app.db")
 
 app = FastAPI()
 
@@ -41,6 +41,12 @@ def get_db():
         "password TEXT NOT NULL)"
     )
     return conn
+
+
+@app.get("/health")
+def health():
+    """Sonde de sante (HEALTHCHECK Docker, probes Kubernetes)."""
+    return {"status": "ok"}
 
 
 @app.get("/user")
