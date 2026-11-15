@@ -1,0 +1,13 @@
+.git
+__pycache__
+*.pyc
+.venv
+reports
+captures
+logs
+k8s
+app.db
+.pytest_cache
+tests
+enonce.txt
+secrets

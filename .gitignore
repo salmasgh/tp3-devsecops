@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+.venv/
+app.db
+.pytest_cache/
+logs/
+reports/
+*.secret
+secrets/
