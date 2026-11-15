@@ -12,8 +12,25 @@ import requests
 import yaml
 from fastapi import FastAPI, Header, HTTPException
 
-# Le secret est lu depuis l'environnement (plus de secret en dur, B105)
-SECRET_KEY = os.environ.get("SECRET_KEY", "")
+
+def load_secret(name: str) -> str:
+    """Charge un secret hors du code : fichier monte (NAME_FILE, prioritaire,
+    ex. Secret Kubernetes monte en volume) sinon variable d'environnement NAME."""
+    path = os.environ.get(f"{name}_FILE")
+    if path and os.path.isfile(path):
+        with open(path, encoding="utf-8") as f:
+            return f.read().strip()
+    return os.environ.get(name, "")
+
+
+def secret_source(name: str) -> str:
+    if os.path.isfile(os.environ.get(f"{name}_FILE", "")):
+        return "fichier"
+    return "env" if os.environ.get(name) else "absent"
+
+
+# Aucun secret dans le code ni dans l'image : charge au demarrage
+SECRET_KEY = load_secret("SECRET_KEY")
 HOSTNAME_RE = re.compile(r"^[A-Za-z0-9.-]{1,253}$")
 
 DB_PATH = os.environ.get("DB_PATH", "app.db")
@@ -46,7 +63,16 @@ def get_db():
 @app.get("/health")
 def health():
     """Sonde de sante (HEALTHCHECK Docker, probes Kubernetes)."""
-    return {"status": "ok"}
+    # Empreinte SHA-256 tronquee : prouve que le secret est charge
+    # sans jamais divulguer sa valeur
+    return {
+        "status": "ok",
+        "secret_key_loaded": bool(SECRET_KEY),
+        "secret_key_source": secret_source("SECRET_KEY"),
+        "secret_key_sha256": hashlib.sha256(SECRET_KEY.encode()).hexdigest()[:12]
+        if SECRET_KEY
+        else None,
+    }
 
 
 @app.get("/user")

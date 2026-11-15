@@ -1,0 +1,9 @@
+# Namespace applicatif avec Pod Security Admission en mode "restricted" :
+# tout pod non conforme (root, privilégié, capacités...) est refusé.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tp3
+  labels:
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
