@@ -1,0 +1,26 @@
+# Valeurs Helm pour Falco (détection d'intrusion au runtime) – TP3
+driver:
+  kind: modern_ebpf          # sonde eBPF CO-RE, pas de module noyau à compiler
+tty: true                    # logs non bufferisés (alertes visibles immédiatement)
+falco:
+  json_output: false
+  priority: notice
+  rules_files:
+    - /etc/falco/falco_rules.yaml
+    - /etc/falco/rules.d
+customRules:
+  tp3-rules.yaml: |-
+    - rule: Lecture du secret applicatif par un processus inattendu
+      desc: >
+        Un processus autre que l'application (python/uvicorn) lit le Secret
+        monté dans le pod tp3-app : tentative probable de vol d'identifiants.
+      condition: >
+        open_read and container
+        and fd.name startswith /run/secrets/app/
+        and not proc.name in (python, python3, uvicorn)
+      output: >
+        Secret applicatif lu par un processus inattendu
+        (fichier=%fd.name commande=%proc.cmdline parent=%proc.pname user=%user.name uid=%user.uid
+        pod=%k8s.pod.name ns=%k8s.ns.name image=%container.image.repository)
+      priority: CRITICAL
+      tags: [tp3, secrets, mitre_credential_access]
