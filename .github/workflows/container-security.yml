@@ -1,0 +1,47 @@
+name: Sécurité de l'image Docker
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  trivy:
+    name: Trivy - image ${{ matrix.version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - version: v1
+            dockerfile: Dockerfile.v1
+          - version: v2
+            dockerfile: Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build de l'image (${{ matrix.dockerfile }})
+        run: docker build -f ${{ matrix.dockerfile }} -t tp3-app:${{ matrix.version }} .
+
+      - name: Taille et utilisateur de l'image
+        run: |
+          docker image ls tp3-app:${{ matrix.version }}
+          echo "Utilisateur : $(docker image inspect -f '{{.Config.User}}' tp3-app:${{ matrix.version }})"
+
+      - name: Scan Trivy de l'image (toutes sévérités, informatif)
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest \
+            image --no-progress --scanners vuln,secret tp3-app:${{ matrix.version }}
+
+      - name: Scan de configuration du Dockerfile (trivy config)
+        run: |
+          mkdir -p /tmp/cfg && cp ${{ matrix.dockerfile }} /tmp/cfg/Dockerfile
+          docker run --rm -v /tmp/cfg:/cfg aquasec/trivy:latest config --exit-code 1 /cfg
+
+      - name: "Security gate : échec si vulnérabilité HIGH ou CRITICAL"
+        if: always()
+        run: |
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest \
+            image --no-progress --scanners vuln --severity HIGH,CRITICAL --exit-code 1 \
+            tp3-app:${{ matrix.version }}
