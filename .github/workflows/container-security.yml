@@ -34,6 +34,13 @@ jobs:
           docker run --rm -v /var/run/docker.sock:/var/run/docker.sock aquasec/trivy:latest \
             image --no-progress --scanners vuln,secret tp3-app:${{ matrix.version }}
 
+      - name: Résumé des scans Trivy (rapport du job)
+        run: |
+          mkdir -p /tmp/cfg && cp ${{ matrix.dockerfile }} /tmp/cfg/Dockerfile
+          docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v "$PWD":/out aquasec/trivy:latest             image --no-progress --scanners vuln,secret -f json -o /out/trivy-image.json tp3-app:${{ matrix.version }}
+          docker run --rm -v /tmp/cfg:/cfg -v "$PWD":/out aquasec/trivy:latest config -f json -o /out/trivy-config.json /cfg
+          python3 .github/scripts/trivy_summary.py ${{ matrix.version }} ${{ matrix.dockerfile }}             "$(docker image ls --format '{{.Size}}' tp3-app:${{ matrix.version }})"             "$(docker image inspect -f '{{.Config.User}}' tp3-app:${{ matrix.version }})"             trivy-image.json trivy-config.json >> "$GITHUB_STEP_SUMMARY"
+
       - name: Scan de configuration du Dockerfile (trivy config)
         run: |
           mkdir -p /tmp/cfg && cp ${{ matrix.dockerfile }} /tmp/cfg/Dockerfile
